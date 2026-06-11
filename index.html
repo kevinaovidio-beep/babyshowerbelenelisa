@@ -709,7 +709,7 @@
 </div><!-- /card -->
 
 <script>
-  // ── Music: muted autoplay → unmute on first touch/click
+  // ── Music
   const audio = document.getElementById('bg-audio');
   const btn   = document.getElementById('music-btn');
   const icon  = document.getElementById('music-icon');
@@ -720,7 +720,7 @@
   function setPlaying(playing) {
     if (playing) {
       btn.classList.add('playing');
-      icon.textContent  = '♫';
+      icon.textContent  = '❚❚';
       label.textContent = 'Pausar';
     } else {
       btn.classList.remove('playing');
@@ -729,32 +729,47 @@
     }
   }
 
-  // Start muted — browsers always allow this
-  window.addEventListener('load', () => {
-    audio.muted  = true;
+  function startAudio() {
+    audio.muted  = false;
     audio.volume = 0.7;
+    audio.play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false));
+  }
+
+  // Try muted autoplay immediately on load
+  window.addEventListener('load', () => {
+    audio.muted = true;
     audio.play().catch(() => {});
-    setPlaying(true);
   });
 
-  // First interaction anywhere → unmute
+  // Unlock on ANY user interaction
   function unlockAudio() {
     if (unlocked) return;
     unlocked = true;
     audio.muted = false;
-    // If it somehow stopped, restart
-    if (audio.paused) audio.play().catch(() => {});
-    document.removeEventListener('click',      unlockAudio);
-    document.removeEventListener('touchstart', unlockAudio);
-  }
-  document.addEventListener('click',      unlockAudio);
-  document.addEventListener('touchstart', unlockAudio);
-
-  // Button toggles play/pause (also unlocks on first press)
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation(); // handled separately below
-    unlockAudio();
     if (audio.paused) {
+      audio.play()
+        .then(() => setPlaying(true))
+        .catch(() => setPlaying(false));
+    } else {
+      setPlaying(true);
+    }
+    ['click','touchstart','touchend','keydown','pointerdown'].forEach(ev => {
+      document.removeEventListener(ev, unlockAudio);
+    });
+  }
+  ['click','touchstart','touchend','keydown','pointerdown'].forEach(ev => {
+    document.addEventListener(ev, unlockAudio, { once: true, passive: true });
+  });
+
+  // Button: toggle play/pause
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!unlocked) {
+      unlocked = true;
+      startAudio();
+    } else if (audio.paused) {
       audio.play().then(() => setPlaying(true)).catch(() => {});
     } else {
       audio.pause();
